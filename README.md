@@ -40,3 +40,8 @@ The enhanced IDS maintains the original packet sniffing and logging logic, while
 3. Alert Management: Alerts are throttled using a cooldown per IP to avoid spam.
 4. JSON Logs: All packet events and alerts are recorded in JSON format in logs/ for easy integration with monitoring tools.
 5. CLI Dashboard: Provides an at-a-glance view of network activity, active IPs, top talkers, and alert summaries.
+
+## Example CLI Dashboard Output 
+
+<img width="816" height="464" alt="image" src="https://github.com/user-attachments/assets/c0ced7e0-963a-46b3-8b01-4eb04a80e9d6" />
+
