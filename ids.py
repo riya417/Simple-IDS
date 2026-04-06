@@ -1,5 +1,5 @@
 # Enhanced Intrusion Detection System (IDS) with Scapy
-# Stateful, rule-based, severity alerts, cooldowns, JSON logging, CLI dashboard
+# Rule-based, severity alerts, cooldowns, JSON logging, CLI dashboard
 
 from scapy.all import sniff, IP, TCP, UDP, ICMP
 import os
@@ -24,16 +24,17 @@ def get_log_file():
 # Configuration
 # -------------------------------
 PORT_SCAN_THRESHOLD = 3       # ports in TIME_WINDOW
-TRAFFIC_THRESHOLD = 5        # packets in TIME_WINDOW
-ICMP_THRESHOLD = 10            # ICMP packets in TIME_WINDOW
-TIME_WINDOW = 10               # seconds
-ALERT_COOLDOWN = 30            # seconds per IP to prevent spam
+TRAFFIC_THRESHOLD = 5         # packets in TIME_WINDOW
+ICMP_THRESHOLD = 10           # ICMP packets in TIME_WINDOW
+TIME_WINDOW = 10              # seconds
+ALERT_COOLDOWN = 30           # seconds per IP
 
 # -------------------------------
 # Stateful Trackers
 # -------------------------------
 connection_tracker = defaultdict(list)  # TCP/UDP port activity
-icmp_tracker = defaultdict(list)        # ICMP activity
+traffic_tracker = defaultdict(list)     # All packet timestamps
+icmp_tracker = defaultdict(list)        # ICMP timestamps
 last_alert_time = defaultdict(lambda: 0) # cooldown tracker
 
 # -------------------------------
@@ -47,14 +48,15 @@ def detect_threats(src_ip, protocol, dport=None):
     # -------------------
     # Port Scan Detection (HIGH)
     # -------------------
-    if dport:
+    if dport is not None:
         connection_tracker[src_ip].append((dport, current_time))
         # Keep only recent ports
         connection_tracker[src_ip] = [
             (port, t) for port, t in connection_tracker[src_ip]
             if current_time - t <= TIME_WINDOW
         ]
-        unique_ports = set(port for port, _ in connection_tracker[src_ip])
+        # Count unique numeric ports only
+        unique_ports = set(port for port, _ in connection_tracker[src_ip] if isinstance(port, int))
         if len(unique_ports) > PORT_SCAN_THRESHOLD:
             alert_msg = f"[HIGH] ALERT: Possible Port Scan from {src_ip}"
             severity = "HIGH"
@@ -62,12 +64,11 @@ def detect_threats(src_ip, protocol, dport=None):
     # -------------------
     # Traffic Spike Detection (MEDIUM)
     # -------------------
-    connection_tracker[src_ip].append(("pkt", current_time))
-    recent_packets = [
-        t for _, t in connection_tracker[src_ip]
-        if current_time - t <= TIME_WINDOW
+    traffic_tracker[src_ip].append(current_time)
+    traffic_tracker[src_ip] = [
+        t for t in traffic_tracker[src_ip] if current_time - t <= TIME_WINDOW
     ]
-    if len(recent_packets) > TRAFFIC_THRESHOLD and severity != "HIGH":
+    if len(traffic_tracker[src_ip]) > TRAFFIC_THRESHOLD and severity != "HIGH":
         alert_msg = f"[MEDIUM] ALERT: Traffic Spike from {src_ip}"
         severity = "MEDIUM"
 
@@ -170,7 +171,7 @@ def dashboard():
 # Sniffing Loop with Dashboard
 # -------------------------------
 def start_ids():
-    print("Starting Advanced Scapy IDS... Press Ctrl+C to stop.")
+    print("Starting Enhanced Scapy IDS... Press Ctrl+C to stop.")
     try:
         while True:
             sniff(timeout=5, prn=packet_handler, store=False)
